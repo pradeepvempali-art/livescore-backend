@@ -1,0 +1,128 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateMatchDto } from './dto/create-match.dto';
+import { UpdateMatchDto } from './dto/update-match.dto';
+import { BulkCreateMatchDto } from './dto/bulk-create-match.dto';
+
+@Injectable()
+export class MatchService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  // ✅ CREATE MATCH
+  async create(dto: CreateMatchDto) {
+    if (dto.teamAId === dto.teamBId) {
+      throw new BadRequestException('Team A and Team B must be different');
+    }
+
+    const teams = await this.prisma.team.findMany({
+      where: { id: { in: [dto.teamAId, dto.teamBId] } },
+    });
+
+    if (teams.length !== 2) {
+      throw new BadRequestException('Invalid teamId(s)');
+    }
+
+    const duplicate = await this.prisma.match.findFirst({
+      where: {
+        title: dto.title,
+        teamAId: dto.teamAId,
+        teamBId: dto.teamBId,
+      },
+    });
+
+    if (duplicate) {
+      throw new BadRequestException('Match already exists');
+    }
+
+    return this.prisma.match.create({
+      data: {
+        title: dto.title,
+        venue: dto.venue,
+        tournament: dto.tournament,
+        status: 'UPCOMING', // 🔥 force correct initial state
+        teamAId: dto.teamAId,
+        teamBId: dto.teamBId,
+      },
+      include: {
+        teamA: true,
+        teamB: true,
+      },
+    });
+  }
+
+  // ✅ BULK CREATE
+  async createBulk(dto: BulkCreateMatchDto) {
+    const payload = dto.matches;
+
+    payload.forEach((m) => {
+      if (m.teamAId === m.teamBId) {
+        throw new BadRequestException('Team A and Team B must be different');
+      }
+    });
+
+    return this.prisma.match.createMany({
+      data: payload.map((m) => ({
+        title: m.title,
+        venue: m.venue,
+        tournament: m.tournament,
+        status: 'UPCOMING',
+        teamAId: m.teamAId,
+        teamBId: m.teamBId,
+      })),
+    });
+  }
+
+  // ✅ GET ALL MATCHES
+  findAll() {
+    return this.prisma.match.findMany({
+      include: {
+        teamA: true,
+        teamB: true,
+        schedule: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ✅ GET MATCH BY ID
+  async findOne(id: string) {
+    const match = await this.prisma.match.findUnique({
+      where: { id },
+      include: {
+        teamA: true,
+        teamB: true,
+        innings: true,
+        commentary: true,
+      },
+    });
+
+    if (!match) {
+      throw new NotFoundException('Match not found');
+    }
+
+    return match;
+  }
+
+  // ✅ UPDATE (manual admin update only)
+  async update(id: string, dto: UpdateMatchDto) {
+    const match = await this.prisma.match.findUnique({ where: { id } });
+    if (!match) throw new NotFoundException('Match not found');
+
+    return this.prisma.match.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  // ❌ DO NOT AUTO DELETE MATCHES WITH DATA
+  async remove(id: string) {
+    const match = await this.prisma.match.findUnique({ where: { id } });
+    if (!match) throw new NotFoundException('Match not found');
+
+    return this.prisma.match.delete({ where: { id } });
+  }
+}

@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+////////////////////////////////////////////////
+// TEAM
+////////////////////////////////////////////////
+model Team {
+  id        String @id @default(uuid())
+  name      String @unique
+  shortName String @unique
+  coach     String
+  captain   String
+
+  players Player[]
+
+  homeA Match[] @relation("teamA")
+  awayB Match[] @relation("teamB")
+
+  rankings Ranking[]
+  standing Standing?
+
+  innings Innings[]
+  wins    MatchResult[] @relation("winnerTeam")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+////////////////////////////////////////////////
+// PLAYER (PURE ENTITY)
+////////////////////////////////////////////////
+model Player {
+  id           String  @id @default(uuid())
+  name         String
+  role         String
+  battingStyle String?
+  bowlingStyle String?
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  stats PlayerStats[]
+
+  battingDismissals Wicket[] @relation("batsman")
+  bowlingWickets    Wicket[] @relation("bowler")
+
+  playerOfMatch MatchResult[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  leaderboards Leaderboard[]
+}
+
+////////////////////////////////////////////////
+// MATCH
+////////////////////////////////////////////////
+model Match {
+  id         String  @id @default(uuid())
+  title      String
+  venue      String
+  tournament String?
+  status     String // UPCOMING | LIVE | COMPLETED
+
+  score   String @default("0/0")
+  overs   String @default("0.0")
+  runRate Float  @default(0)
+
+  teamAId String
+  teamBId String
+
+  teamA Team @relation("teamA", fields: [teamAId], references: [id])
+  teamB Team @relation("teamB", fields: [teamBId], references: [id])
+
+  commentary Commentary[]
+  schedule   Schedule?
+  innings    Innings[]
+  wickets    Wicket[]
+  stats      PlayerStats[]
+  result     MatchResult?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+////////////////////////////////////////////////
+// COMMENTARY (BALL BY BALL)
+////////////////////////////////////////////////
+model Commentary {
+  id      String @id @default(uuid())
+  matchId String
+
+  over Int
+  ball Int
+  runs String
+  text String
+
+  match Match @relation(fields: [matchId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+////////////////////////////////////////////////
+// INNINGS
+////////////////////////////////////////////////
+model Innings {
+  id String @id @default(uuid())
+
+  matchId String
+  teamId  String
+
+  inningsNumber Int // 1 or 2
+  runs          Int
+  wickets       Int
+  overs         Float
+
+  match Match @relation(fields: [matchId], references: [id])
+  team  Team  @relation(fields: [teamId], references: [id])
+
+  wicketsData Wicket[]
+  stats       PlayerStats[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([matchId, inningsNumber])
+}
+
+////////////////////////////////////////////////
+// PLAYER STATS (PER MATCH / PER INNINGS)
+////////////////////////////////////////////////
+model PlayerStats {
+  id String @id @default(uuid())
+
+  playerId  String
+  matchId   String
+  inningsId String?
+
+  // Batting
+  runs       Int @default(0)
+  ballsFaced Int @default(0)
+  fours      Int @default(0)
+  sixes      Int @default(0)
+
+  // Bowling
+  overs        Float?
+  runsConceded Int?
+  wickets      Int    @default(0)
+
+  player  Player   @relation(fields: [playerId], references: [id])
+  match   Match    @relation(fields: [matchId], references: [id])
+  innings Innings? @relation(fields: [inningsId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([playerId, matchId])
+}
+
+////////////////////////////////////////////////
+// WICKET
+////////////////////////////////////////////////
+model Wicket {
+  id String @id @default(uuid())
+
+  matchId   String
+  inningsId String
+
+  batsmanId String
+  bowlerId  String
+
+  over Int
+  ball Int
+  kind String // BOWLED | CAUGHT | RUN_OUT | LBW
+
+  match   Match   @relation(fields: [matchId], references: [id])
+  innings Innings @relation(fields: [inningsId], references: [id])
+
+  batsman Player @relation("batsman", fields: [batsmanId], references: [id])
+  bowler  Player @relation("bowler", fields: [bowlerId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+////////////////////////////////////////////////
+// MATCH RESULT
+////////////////////////////////////////////////
+model MatchResult {
+  id String @id @default(uuid())
+
+  matchId String @unique
+  match   Match  @relation(fields: [matchId], references: [id])
+
+  winnerTeamId String?
+  winnerTeam   Team?   @relation("winnerTeam", fields: [winnerTeamId], references: [id])
+
+  playerOfMatchId String?
+  playerOfMatch   Player? @relation(fields: [playerOfMatchId], references: [id])
+
+  resultType String // WIN | DRAW | TIE | NO_RESULT
+  summary    String?
+
+  createdAt DateTime @default(now())
+}
+
+////////////////////////////////////////////////
+// LEADERBOARD (OPTIONAL / CACHE)
+////////////////////////////////////////////////
+model Leaderboard {
+  id    String @id @default(uuid())
+  type  String // MOST_RUNS | MOST_WICKETS | BEST_SR
+  value Int
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([playerId, type])
+}
+
+////////////////////////////////////////////////
+// RANKING
+////////////////////////////////////////////////
+model Ranking {
+  id String @id @default(uuid())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  type   String // ODI | T20 | TEST
+  rating Int
+
+  @@unique([teamId, type])
+}
+
+////////////////////////////////////////////////
+// STANDING
+////////////////////////////////////////////////
+model Standing {
+  id     String @id @default(uuid())
+  teamId String @unique
+
+  played Int
+  won    Int
+  lost   Int
+  points Int
+  nrr    Float
+
+  team Team @relation(fields: [teamId], references: [id])
+}
+
+////////////////////////////////////////////////
+// SCHEDULE
+////////////////////////////////////////////////
+model Schedule {
+  id      String   @id @default(uuid())
+  matchId String   @unique
+  date    DateTime
+
+  match Match @relation(fields: [matchId], references: [id])
+}
