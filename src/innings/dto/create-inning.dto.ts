@@ -1,8 +1,14 @@
+import { IsInt, IsUUID, Min, Max } from 'class-validator';
+
 export class CreateInningDto {
+  @IsUUID()
   matchId: string;
-  teamId: string;
-  inningsNumber: number; // 1 or 2
-  runs: number;
-  wickets: number;
-  overs: number;
+
+  @IsUUID()
+  teamId: string; // batting team
+
+  @IsInt()
+  @Min(1)
+  @Max(2)
+  inningsNumber: number;
 }

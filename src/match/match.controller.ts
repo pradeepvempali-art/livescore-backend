@@ -41,6 +41,12 @@ export class MatchController {
     return this.matchService.update(id, dto);
   }
 
+  // 🔥🔥 THIS IS WHAT YOU WERE MISSING 🔥🔥
+  @Patch(':id/recalc-score')
+  recalcScore(@Param('id') id: string) {
+    return this.matchService.recalcScore(id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.matchService.remove(id);

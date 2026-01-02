@@ -1,29 +1,18 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsString, IsUUID } from 'class-validator';
 
 export class CreateMatchDto {
   @IsString()
-  @IsNotEmpty()
   title: string;
 
   @IsString()
-  @IsNotEmpty()
   venue: string;
 
-  @IsOptional()
   @IsString()
-  tournament?: string;
+  tournament: string;
 
-  @IsString()
-  @IsNotEmpty()
-  status: string; // Scheduled | Live | Finished
-
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   teamAId: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   teamBId: string;
 }

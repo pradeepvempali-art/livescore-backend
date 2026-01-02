@@ -29,16 +29,23 @@ export class ScheduleService {
       throw new BadRequestException('Schedule already exists for this match');
     }
 
+    const date = new Date(`${dto.matchDate}T${dto.startTime}:00`);
+    if (isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid matchDate or startTime');
+    }
+
     return this.prisma.schedule.create({
       data: {
         matchId: dto.matchId,
-        date: new Date(dto.date),
+        date,
       },
     });
   }
 
-  // ✅ CREATE BULK (FIXED)
-  async createBulk(schedules: CreateScheduleDto[]) {
+  // ✅ CREATE BULK
+  async createBulk(dto: { schedules: CreateScheduleDto[] }) {
+    const schedules = dto.schedules;
+
     const matchIds = schedules.map((s) => s.matchId);
 
     // Validate matches
@@ -51,7 +58,7 @@ export class ScheduleService {
       throw new BadRequestException('One or more matchIds are invalid');
     }
 
-    // Check existing schedules
+    // Prevent duplicates
     const existing = await this.prisma.schedule.findMany({
       where: { matchId: { in: matchIds } },
       select: { matchId: true },
@@ -65,16 +72,25 @@ export class ScheduleService {
       );
     }
 
-    // Create all
-    return this.prisma.schedule.createMany({
-      data: schedules.map((s) => ({
+    const data = schedules.map((s) => {
+      const date = new Date(`${s.matchDate}T${s.startTime}:00`);
+
+      if (isNaN(date.getTime())) {
+        throw new BadRequestException(
+          `Invalid matchDate/startTime for matchId ${s.matchId}`,
+        );
+      }
+
+      return {
         matchId: s.matchId,
-        date: new Date(s.date),
-      })),
+        date,
+      };
     });
+
+    return this.prisma.schedule.createMany({ data });
   }
 
-  // READ ALL
+  // ✅ READ ALL
   async findAll() {
     return this.prisma.schedule.findMany({
       include: {
@@ -89,7 +105,7 @@ export class ScheduleService {
     });
   }
 
-  // READ ONE
+  // ✅ READ ONE
   async findOne(id: string) {
     const schedule = await this.prisma.schedule.findUnique({
       where: { id },
@@ -103,7 +119,7 @@ export class ScheduleService {
     return schedule;
   }
 
-  // UPDATE
+  // ✅ UPDATE
   async update(id: string, dto: UpdateScheduleDto) {
     const schedule = await this.prisma.schedule.findUnique({
       where: { id },
@@ -111,6 +127,15 @@ export class ScheduleService {
 
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
+    }
+
+    let date: Date | undefined;
+
+    if (dto.matchDate && dto.startTime) {
+      date = new Date(`${dto.matchDate}T${dto.startTime}:00`);
+      if (isNaN(date.getTime())) {
+        throw new BadRequestException('Invalid matchDate or startTime');
+      }
     }
 
     if (dto.matchId && dto.matchId !== schedule.matchId) {
@@ -127,12 +152,12 @@ export class ScheduleService {
       where: { id },
       data: {
         matchId: dto.matchId,
-        date: dto.date ? new Date(dto.date) : undefined,
+        date,
       },
     });
   }
 
-  // DELETE
+  // ✅ DELETE
   async remove(id: string) {
     const schedule = await this.prisma.schedule.findUnique({
       where: { id },

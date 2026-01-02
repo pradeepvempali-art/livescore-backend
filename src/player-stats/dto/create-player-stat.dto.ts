@@ -1,42 +1,39 @@
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsUUID } from 'class-validator';
 
 export class CreatePlayerStatsDto {
-  @IsString()
+  @IsUUID()
   playerId: string;
 
-  @IsString()
-  matchId: string;
-
   @IsOptional()
-  @IsString()
+  @IsUUID()
   inningsId?: string;
 
+  // Batting
   @IsOptional()
   @IsInt()
-  @Min(0)
   runs?: number;
 
   @IsOptional()
   @IsInt()
-  @Min(0)
   ballsFaced?: number;
 
   @IsOptional()
   @IsInt()
-  @Min(0)
   fours?: number;
 
   @IsOptional()
   @IsInt()
-  @Min(0)
   sixes?: number;
 
-  @IsOptional()
-  wickets?: number;
-
+  // Bowling
   @IsOptional()
   overs?: number;
 
   @IsOptional()
+  @IsInt()
   runsConceded?: number;
+
+  @IsOptional()
+  @IsInt()
+  wickets?: number;
 }

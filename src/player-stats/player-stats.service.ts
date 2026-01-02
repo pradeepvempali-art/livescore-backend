@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreatePlayerStatsDto } from './dto/create-player-stat.dto';
-import { UpdatePlayerStatsDto } from './dto/update-player-stat.dto';
 import { BulkCreatePlayerStatsDto } from './dto/bulk-create-player-stats.dto';
 import { PlayerStats } from '@prisma/client';
 
@@ -9,16 +11,52 @@ import { PlayerStats } from '@prisma/client';
 export class PlayerStatsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 🔥 BULK UPSERT (MAIN METHOD)
+  // 🔥 BULK UPSERT (ONLY ENTRY POINT)
   async bulkUpsert(dto: BulkCreatePlayerStatsDto) {
     const results: PlayerStats[] = [];
 
+    // 1️⃣ Validate match
+    const match = await this.prisma.match.findUnique({
+      where: { id: dto.matchId },
+    });
+    if (!match) {
+      throw new BadRequestException('Invalid matchId');
+    }
+
+    // 2️⃣ Validate players
+    const playerIds = [...new Set(dto.stats.map((s) => s.playerId))];
+    const players = await this.prisma.player.findMany({
+      where: { id: { in: playerIds } },
+      select: { id: true },
+    });
+
+    if (players.length !== playerIds.length) {
+      throw new BadRequestException('One or more playerIds are invalid');
+    }
+
+    // 3️⃣ Validate innings (if provided)
+    const inningsIds = [
+      ...new Set(dto.stats.map((s) => s.inningsId).filter(Boolean)),
+    ] as string[];
+
+    if (inningsIds.length > 0) {
+      const innings = await this.prisma.innings.findMany({
+        where: { id: { in: inningsIds } },
+        select: { id: true },
+      });
+
+      if (innings.length !== inningsIds.length) {
+        throw new BadRequestException('One or more inningsIds are invalid');
+      }
+    }
+
+    // 4️⃣ UPSERT stats
     for (const stat of dto.stats) {
       const result = await this.prisma.playerStats.upsert({
         where: {
           playerId_matchId: {
             playerId: stat.playerId,
-            matchId: stat.matchId,
+            matchId: dto.matchId,
           },
         },
         update: {
@@ -33,7 +71,7 @@ export class PlayerStatsService {
         },
         create: {
           playerId: stat.playerId,
-          matchId: stat.matchId,
+          matchId: dto.matchId,
           inningsId: stat.inningsId,
           runs: stat.runs ?? 0,
           ballsFaced: stat.ballsFaced ?? 0,
@@ -54,14 +92,7 @@ export class PlayerStatsService {
     };
   }
 
-  // ✅ CREATE SINGLE PLAYER STATS (OPTIONAL)
-  create(dto: CreatePlayerStatsDto) {
-    return this.prisma.playerStats.create({
-      data: dto,
-    });
-  }
-
-  // ✅ GET ALL PLAYER STATS
+  // ✅ GET ALL
   findAll() {
     return this.prisma.playerStats.findMany({
       include: {
@@ -72,7 +103,7 @@ export class PlayerStatsService {
     });
   }
 
-  // ✅ GET STATS BY MATCH
+  // ✅ GET BY MATCH
   findByMatch(matchId: string) {
     return this.prisma.playerStats.findMany({
       where: { matchId },
@@ -80,7 +111,7 @@ export class PlayerStatsService {
     });
   }
 
-  // ✅ GET STATS BY PLAYER
+  // ✅ GET BY PLAYER
   findByPlayer(playerId: string) {
     return this.prisma.playerStats.findMany({
       where: { playerId },
@@ -88,19 +119,19 @@ export class PlayerStatsService {
     });
   }
 
-  // ✅ UPDATE SINGLE STAT ROW
-  async update(id: string, dto: UpdatePlayerStatsDto) {
+  // ✅ UPDATE
+  async update(id: string, data: Partial<PlayerStats>) {
     try {
       return await this.prisma.playerStats.update({
         where: { id },
-        data: dto,
+        data,
       });
     } catch {
       throw new NotFoundException('PlayerStats not found');
     }
   }
 
-  // ✅ DELETE SINGLE STAT ROW
+  // ✅ DELETE
   async remove(id: string) {
     try {
       return await this.prisma.playerStats.delete({

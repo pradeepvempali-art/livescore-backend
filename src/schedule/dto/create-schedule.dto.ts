@@ -1,12 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { IsDateString, IsNotEmpty, IsString } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 export class CreateScheduleDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   matchId: string;
 
-  @IsDateString()
-  date: string; // ISO string
+  @IsDateString() // YYYY-MM-DD
+  matchDate: string;
+
+  @IsString()
+  @IsNotEmpty() // HH:mm
+  startTime: string;
 }

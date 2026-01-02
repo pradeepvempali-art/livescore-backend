@@ -2,67 +2,64 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
-  Param,
   Delete,
+  Body,
+  Param,
 } from '@nestjs/common';
 import { InningsService } from './innings.service';
 import { CreateInningDto } from './dto/create-inning.dto';
 import { UpdateInningDto } from './dto/update-inning.dto';
 
-import { BulkCreateInningDto } from './dto/bulk-create-innings.dto';
-
 @Controller('innings')
 export class InningsController {
-  constructor(private readonly inningsService: InningsService) {}
+  constructor(private readonly service: InningsService) {}
 
-  // ✅ SINGLE CREATE
+  // ✅ CREATE
   @Post()
   create(@Body() dto: CreateInningDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.inningsService.create(dto);
+    return this.service.create(dto);
   }
 
   // ✅ BULK CREATE
   @Post('bulk')
-  bulkCreate(@Body() dto: BulkCreateInningDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.inningsService.bulkCreate(dto.innings);
+  bulkCreate(@Body() dtos: CreateInningDto[]) {
+    return this.service.bulkCreate(dtos);
   }
 
-  // ✅ FIND ALL
+  // ✅ GET ALL
   @Get()
   findAll() {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.inningsService.findAll();
+    return this.service.findAll();
   }
 
-  // 🔥 GET INNINGS BY MATCH
+  // ✅ GET BY MATCH
   @Get('match/:matchId')
   findByMatch(@Param('matchId') matchId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.inningsService.findByMatch(matchId);
+    return this.service.findByMatch(matchId);
   }
 
-  // ✅ FIND ONE
+  // ✅ GET ONE
   @Get(':id')
   findOne(@Param('id') id: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.inningsService.findOne(id);
+    return this.service.findOne(id);
   }
 
   // ✅ UPDATE
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateInningDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.inningsService.update(id, dto);
+    return this.service.update(id, dto);
+  }
+
+  // 🔥 RECALCULATE INNINGS
+  @Patch(':id/recalc')
+  recalc(@Param('id') id: string) {
+    return this.service.recalcInnings(id);
   }
 
   // ✅ DELETE
   @Delete(':id')
   remove(@Param('id') id: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.inningsService.remove(id);
+    return this.service.remove(id);
   }
 }

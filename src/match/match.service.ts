@@ -12,7 +12,7 @@ import { BulkCreateMatchDto } from './dto/bulk-create-match.dto';
 export class MatchService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ✅ CREATE MATCH
+  // ✅ CREATE SINGLE MATCH
   async create(dto: CreateMatchDto) {
     if (dto.teamAId === dto.teamBId) {
       throw new BadRequestException('Team A and Team B must be different');
@@ -43,7 +43,7 @@ export class MatchService {
         title: dto.title,
         venue: dto.venue,
         tournament: dto.tournament,
-        status: 'UPCOMING', // 🔥 force correct initial state
+        status: 'UPCOMING',
         teamAId: dto.teamAId,
         teamBId: dto.teamBId,
       },
@@ -54,26 +54,30 @@ export class MatchService {
     });
   }
 
-  // ✅ BULK CREATE
+  // ✅ BULK CREATE MATCHES
   async createBulk(dto: BulkCreateMatchDto) {
-    const payload = dto.matches;
+    if (!dto.matches || !Array.isArray(dto.matches)) {
+      throw new BadRequestException('matches array is required');
+    }
 
-    payload.forEach((m) => {
-      if (m.teamAId === m.teamBId) {
-        throw new BadRequestException('Team A and Team B must be different');
-      }
-    });
+    return Promise.all(
+      dto.matches.map(async (m) => {
+        if (m.teamAId === m.teamBId) {
+          throw new BadRequestException('Team A and Team B must be different');
+        }
 
-    return this.prisma.match.createMany({
-      data: payload.map((m) => ({
-        title: m.title,
-        venue: m.venue,
-        tournament: m.tournament,
-        status: 'UPCOMING',
-        teamAId: m.teamAId,
-        teamBId: m.teamBId,
-      })),
-    });
+        return this.prisma.match.create({
+          data: {
+            title: m.title,
+            venue: m.venue,
+            tournament: m.tournament,
+            status: 'UPCOMING',
+            teamAId: m.teamAId,
+            teamBId: m.teamBId,
+          },
+        });
+      }),
+    );
   }
 
   // ✅ GET ALL MATCHES
@@ -107,7 +111,7 @@ export class MatchService {
     return match;
   }
 
-  // ✅ UPDATE (manual admin update only)
+  // ✅ UPDATE MATCH
   async update(id: string, dto: UpdateMatchDto) {
     const match = await this.prisma.match.findUnique({ where: { id } });
     if (!match) throw new NotFoundException('Match not found');
@@ -118,7 +122,48 @@ export class MatchService {
     });
   }
 
-  // ❌ DO NOT AUTO DELETE MATCHES WITH DATA
+  // 🔥 UPDATE MATCH SCORE FROM LATEST INNINGS
+  async recalcScore(matchId: string) {
+    // 1️⃣ Validate match
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+    });
+
+    if (!match) {
+      throw new NotFoundException('Match not found');
+    }
+
+    // 2️⃣ Get latest innings
+    const innings = await this.prisma.innings.findMany({
+      where: { matchId },
+      orderBy: { inningsNumber: 'desc' },
+      take: 1,
+    });
+
+    if (innings.length === 0) {
+      throw new NotFoundException('No innings found for this match');
+    }
+
+    const current = innings[0];
+
+    // 3️⃣ Calculate score
+    const score = `${current.runs}/${current.wickets}`;
+    const overs = current.overs.toFixed(1);
+    const runRate =
+      current.overs > 0 ? Number((current.runs / current.overs).toFixed(2)) : 0;
+
+    // 4️⃣ Update match
+    return this.prisma.match.update({
+      where: { id: matchId },
+      data: {
+        score,
+        overs,
+        runRate,
+      },
+    });
+  }
+
+  // ❌ DELETE MATCH
   async remove(id: string) {
     const match = await this.prisma.match.findUnique({ where: { id } });
     if (!match) throw new NotFoundException('Match not found');
