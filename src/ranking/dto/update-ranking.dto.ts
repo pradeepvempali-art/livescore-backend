@@ -1,4 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateRankingDto } from './create-ranking.dto';
 
-export class UpdateRankingDto extends PartialType(CreateRankingDto) {}
+export class UpdateRankingDto extends PartialType(CreateRankingDto) {
+  teamId?: string;
+  type?: string;
+}

@@ -1,4 +1,9 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateMatchResultDto } from './create-match-result.dto';
 
-export class UpdateMatchResultDto extends PartialType(CreateMatchResultDto) {}
+export class UpdateMatchResultDto extends PartialType(CreateMatchResultDto) {
+  matchId?: string;
+  winnerTeamId?: string;
+  playerOfTheMatchId?: string;
+  result?: string;
+}
