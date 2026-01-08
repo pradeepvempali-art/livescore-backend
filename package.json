@@ -9,12 +9,13 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "postinstall": "npx prisma generate",
-    "prisma:generate":"npx prisma generate"
+    "prisma:generate": "npx prisma generate"
   },
   "dependencies": {
     "@nestjs/common": "11.0.1",
     "@nestjs/core": "11.0.1",
     "@nestjs/jwt": "11.0.2",
+    "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/passport": "11.0.5",
     "@nestjs/platform-express": "11.0.1",
     "@prisma/client": "6.19.1",
