@@ -4,13 +4,14 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "node ./node_modules/.bin/nest build",
-    "start": "node dist/main.js",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/main.js",
-    "postinstall": "npx prisma generate",
-    "prisma:generate": "npx prisma generate"
-  },
+  "build": "tsc -p tsconfig.build.json",
+  "start": "node dist/main.js",
+  "start:dev": "nest start --watch",
+  "start:prod": "node dist/main.js",
+  "postinstall": "npx prisma generate",
+  "prisma:generate": "npx prisma generate"
+}
+,
   "dependencies": {
     "@nestjs/common": "11.0.1",
     "@nestjs/core": "11.0.1",
